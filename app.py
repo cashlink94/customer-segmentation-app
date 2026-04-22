@@ -1,156 +1,183 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+import os
 
-# ======================
-# CONFIG
-# ======================
-st.set_page_config(page_title="Customer Segmentation App", layout="wide")
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(
+    page_title="Customer Segmentation App",
+    layout="wide"
+)
 
-st.title("💳 Customer Segmentation App")
-st.caption("AI-powered customer segmentation using KMeans clustering")
+# =========================
+# STYLE (FINTECH LOOK)
+# =========================
+st.markdown("""
+<style>
+.main { background-color: #0e1117; }
+h1 { color: #00ffd5; text-align: center; }
+</style>
+""", unsafe_allow_html=True)
 
-st.divider()
+# =========================
+# FEATURES
+# =========================
+FEATURES = [
+    "BALANCE",
+    "PURCHASES",
+    "CASH_ADVANCE",
+    "PURCHASES_FREQUENCY"
+]
 
-# ======================
-# SAFE MODEL LOADING
-# ======================
-try:
-    model = joblib.load("models/kmeans_model.pkl")
-    scaler = joblib.load("models/scaler.pkl")
-except Exception as e:
-    st.error("❌ Model files not found. Run training first.")
-    st.stop()
+MODEL_PATH = "models/kmeans_model.pkl"
+SCALER_PATH = "models/scaler.pkl"
 
-# ======================
-# FILE UPLOAD
-# ======================
-file = st.file_uploader("Upload CSV File", type=["csv"])
+# =========================
+# LOAD OR TRAIN MODEL (AUTO FIX)
+# =========================
+def load_model():
+    if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
+        model = joblib.load(MODEL_PATH)
+        scaler = joblib.load(SCALER_PATH)
+        return model, scaler
+    return None, None
+
+model, scaler = load_model()
+
+# =========================
+# AUTO TRAIN IF MISSING
+# =========================
+def train_model(df):
+    scaler = StandardScaler()
+    X = scaler.fit_transform(df)
+
+    model = KMeans(n_clusters=4, random_state=42, n_init=10)
+    model.fit(X)
+
+    os.makedirs("models", exist_ok=True)
+    joblib.dump(model, MODEL_PATH)
+    joblib.dump(scaler, SCALER_PATH)
+
+    return model, scaler
+
+# =========================
+# HEADER
+# =========================
+st.title("💳 Customer Segmentation System")
+st.markdown("AI-powered customer clustering using KMeans + PCA")
+
+# =========================
+# UPLOAD DATA
+# =========================
+file = st.file_uploader("Upload Customer CSV", type=["csv"])
 
 if file:
 
     df = pd.read_csv(file)
 
-    # ======================
-    # SAFE CLEANING
-    # ======================
-    df = df.drop(columns=["CUST_ID"], errors="ignore")
+    # =========================
+    # VALIDATION
+    # =========================
+    missing = [c for c in FEATURES if c not in df.columns]
 
-    # Replace missing values safely
-    df = df.fillna(df.median(numeric_only=True))
+    if missing:
+        st.error(f"""
+❌ Missing required columns:
+{missing}
 
-    # Ensure numeric only
-    df = df.select_dtypes(include=["number"])
-
-    if df.shape[1] < 2:
-        st.error("❌ Not enough numeric features for clustering.")
+Required columns:
+{FEATURES}
+""")
         st.stop()
 
-    # ======================
-    # SCALING + PREDICTION
-    # ======================
-    X = scaler.transform(df)
-    clusters = model.predict(X)
+    data = df[FEATURES].dropna()
 
+    # =========================
+    # AUTO TRAIN IF NEEDED
+    # =========================
+    if model is None or scaler is None:
+        st.warning("⚠ Model not found. Training new model...")
+        model, scaler = train_model(data)
+
+    # =========================
+    # PREDICTION
+    # =========================
+    scaled = scaler.transform(data)
+    clusters = model.predict(scaled)
+
+    df = df.loc[data.index].copy()
     df["Cluster"] = clusters
 
-    # ======================
-    # SMART LABELING
-    # ======================
-    label_map = {
-        0: "💎 VIP Customers",
-        1: "💰 High Spenders",
-        2: "⚠️ Cash Users",
-        3: "❄️ Low Activity Users"
+    # =========================
+    # LABELS
+    # =========================
+    cluster_map = {
+        0: "Low Activity Users",
+        1: "Cash Advance Users",
+        2: "High Spenders",
+        3: "VIP Customers"
     }
 
-    df["Segment"] = df["Cluster"].map(label_map)
+    df["Segment"] = df["Cluster"].map(cluster_map)
 
-    # ======================
-    # KPI SECTION
-    # ======================
+    # =========================
+    # KPI DASHBOARD
+    # =========================
+    st.subheader("📊 Key Metrics")
+
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric("Total Customers", len(df))
-    col2.metric("VIP", sum(df["Segment"] == "💎 VIP Customers"))
-    col3.metric("High Spenders", sum(df["Segment"] == "💰 High Spenders"))
-    col4.metric("Low Activity", sum(df["Segment"] == "❄️ Low Activity Users"))
+    col2.metric("VIP", sum(df["Segment"] == "VIP Customers"))
+    col3.metric("High Spenders", sum(df["Segment"] == "High Spenders"))
+    col4.metric("Others", sum(df["Cluster"] <= 1))
 
-    st.divider()
-
-    # ======================
+    # =========================
     # DATA PREVIEW
-    # ======================
-    st.subheader("📊 Data Preview")
-    st.dataframe(df.head(), use_container_width=True)
+    # =========================
+    st.subheader("📄 Segmented Data")
+    st.dataframe(df.head())
 
-    # ======================
-    # DISTRIBUTION CHART
-    # ======================
-    st.subheader("📈 Segment Distribution")
+    # =========================
+    # PCA VISUALIZATION
+    # =========================
+    st.subheader("📍 Customer Clusters (PCA View)")
+
+    pca = PCA(n_components=2)
+    reduced = pca.fit_transform(scaled)
 
     fig, ax = plt.subplots()
-    df["Segment"].value_counts().plot(kind="bar", ax=ax)
-    ax.set_ylabel("Customers")
-    st.pyplot(fig)
 
-    # ======================
-    # PCA (FIXED SAFE VERSION)
-    # ======================
-    st.subheader("📍 Customer Clusters (2D View)")
-
-    try:
-        pca = PCA(n_components=2)
-        reduced = pca.fit_transform(X)
-
-        fig2, ax2 = plt.subplots()
-        ax2.scatter(
-            reduced[:, 0],
-            reduced[:, 1],
-            c=clusters,
-            cmap="viridis",
-            alpha=0.6
-        )
-
-        ax2.set_xlabel("Component 1")
-        ax2.set_ylabel("Component 2")
-        ax2.set_title("Customer Segmentation Clusters")
-
-        st.pyplot(fig2)
-
-    except Exception:
-        st.warning("PCA visualization unavailable for this dataset.")
-
-    # ======================
-    # BUSINESS INSIGHTS (FINAL CLEAN)
-    # ======================
-    st.subheader("📊 Business Insights")
-
-    st.markdown("""
-### 💎 VIP Customers
-High-value users → priority retention + loyalty rewards
-
-### 💰 High Spenders
-Frequent large transactions → upsell premium offers
-
-### ⚠️ Cash Users
-Cash advance users → monitor credit risk
-
-### ❄️ Low Activity Users
-Inactive users → re-engagement campaigns needed
-""")
-
-    # ======================
-    # DOWNLOAD
-    # ======================
-    st.download_button(
-        "📥 Download Segmented Data",
-        df.to_csv(index=False),
-        file_name="segmented_customers.csv",
-        mime="text/csv"
+    scatter = ax.scatter(
+        reduced[:, 0],
+        reduced[:, 1],
+        c=clusters,
+        cmap="viridis",
+        alpha=0.7
     )
 
-else:
-    st.info("Upload a CSV file to start analysis")
+    ax.set_title("Customer Segmentation Map")
+    ax.set_xlabel("PCA 1")
+    ax.set_ylabel("PCA 2")
+
+    legend = ax.legend(*scatter.legend_elements(), title="Clusters")
+    ax.add_artist(legend)
+
+    st.pyplot(fig)
+
+    # =========================
+    # BUSINESS INSIGHTS
+    # =========================
+    st.subheader("📊 Business Insights")
+
+    for seg, count in df["Segment"].value_counts().items():
+        st.write(f"**{seg}** → {count} customers")
+
+    st.success("✅ Analysis completed successfully")

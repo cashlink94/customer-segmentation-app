@@ -1,0 +1,6 @@
+FEATURES = [
+    "BALANCE",
+    "PURCHASES",
+    "CASH_ADVANCE",
+    "PURCHASES_FREQUENCY"
+]
