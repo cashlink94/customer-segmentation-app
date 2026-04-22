@@ -4,94 +4,116 @@ import joblib
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
-# ---------------- CONFIG ----------------
-st.set_page_config(page_title="Customer Segmentation", layout="wide")
+# =========================
+# Page Config
+# =========================
+st.set_page_config(
+    page_title="Customer Segmentation Dashboard",
+    layout="wide"
+)
 
-st.title("💳 Customer Segmentation App")
-st.write("Upload customer data to predict segments using KMeans clustering.")
+# =========================
+# Title
+# =========================
+st.title("💳 Customer Segmentation Dashboard")
+st.markdown("AI-powered customer segmentation using KMeans clustering.")
 
-# ---------------- LOAD MODEL ----------------
-model = joblib.load("models/kmeans_model.pkl")
-scaler = joblib.load("models/scaler.pkl")
+# =========================
+# Load Model
+# =========================
+try:
+    model = joblib.load("models/kmeans_model.pkl")
+    scaler = joblib.load("models/scaler.pkl")
+except:
+    st.error("❌ Model files not found. Please train the model first.")
+    st.stop()
 
-# ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+# =========================
+# File Upload
+# =========================
+uploaded_file = st.file_uploader("📂 Upload CSV File", type=["csv"])
 
-if uploaded_file:
+if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
-    # ---------------- DATA PREVIEW ----------------
-    with st.expander("📊 Raw Data Preview"):
-        st.dataframe(df.head(50), use_container_width=True)
+    # =========================
+    # Clean Data
+    # =========================
+    df = df.drop(columns=["CUST_ID"], errors="ignore")
+    df.fillna(df.mean(), inplace=True)
 
-    # ---------------- PREPROCESS ----------------
-    df_clean = df.drop("CUST_ID", axis=1, errors="ignore")
-    df_clean = df_clean.fillna(df_clean.mean(numeric_only=True))
+    # =========================
+    # Scale + Predict
+    # =========================
+    scaled_data = scaler.transform(df)
+    df["Cluster"] = model.predict(scaled_data)
 
-    # ---------------- SCALE + PREDICT ----------------
-    X_scaled = scaler.transform(df_clean)
-    clusters = model.predict(X_scaled)
-
-    df["Cluster"] = clusters
-
-    # ---------------- LABELS ----------------
-    cluster_labels = {
-        0: "💎 VIP",
-        1: "💰 Spenders",
-        2: "⚠️ Cash Users",
-        3: "❄️ Low Activity"
+    # =========================
+    # Segment Labels
+    # =========================
+    segment_names = {
+        0: "💎 VIP Customers",
+        1: "💰 High Spenders",
+        2: "⚠️ Cash Advance Users",
+        3: "❄️ Low Activity Users"
     }
 
-    df["Segment"] = df["Cluster"].map(cluster_labels)
+    df["Segment"] = df["Cluster"].map(segment_names)
 
-    # ---------------- TOP SECTION (2 COLS) ----------------
+    # =========================
+    # Layout (2 Columns)
+    # =========================
     col1, col2 = st.columns(2)
 
+    # -------- LEFT SIDE --------
     with col1:
-        st.subheader("🧠 Segmented Customers")
-        st.dataframe(df[["Cluster", "Segment"]].head(50), use_container_width=True)
 
-    with col2:
+        with st.expander("📊 Raw Data"):
+            st.dataframe(df.head())
+
         st.subheader("📈 Segment Distribution")
-        fig1, ax1 = plt.subplots(figsize=(4, 3))
-        df["Segment"].value_counts().plot(kind="bar", ax=ax1)
-        ax1.set_ylabel("Count")
-        st.pyplot(fig1)
+        fig, ax = plt.subplots()
+        df["Segment"].value_counts().plot(kind="bar", ax=ax)
+        ax.set_xlabel("Segment")
+        ax.set_ylabel("Customers")
+        plt.xticks(rotation=20)
+        st.pyplot(fig)
 
-    # ---------------- PCA + INSIGHTS ----------------
-    st.subheader("📍 Customer Clusters (PCA)")
+    # -------- RIGHT SIDE --------
+    with col2:
 
-    pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X_scaled)
+        st.subheader("📍 Customer Clusters (PCA)")
+        pca = PCA(n_components=2)
+        pca_data = pca.fit_transform(scaled_data)
 
-    col3, col4 = st.columns([2, 1])
-
-    with col3:
-        fig2, ax2 = plt.subplots(figsize=(6, 4))
+        fig2, ax2 = plt.subplots()
         scatter = ax2.scatter(
-            X_pca[:, 0],
-            X_pca[:, 1],
-            c=clusters,
-            cmap="viridis",
-            s=5
+            pca_data[:, 0],
+            pca_data[:, 1],
+            c=df["Cluster"]
         )
-        ax2.set_title("Clusters (PCA)")
         ax2.set_xlabel("PCA 1")
         ax2.set_ylabel("PCA 2")
         st.pyplot(fig2)
 
-    with col4:
-        st.subheader("📊 Insights")
-        st.markdown("""
-        💎 **VIP**  
-        High balance, frequent usage  
+    # =========================
+    # Insights Section
+    # =========================
+    st.subheader("📊 Business Insights")
 
-        💰 **Spenders**  
-        Large purchases  
+    st.markdown("""
+    💎 **VIP Customers**  
+    High balance, frequent purchases → target with premium offers  
 
-        ⚠️ **Cash Users**  
-        Frequent withdrawals  
+    💰 **High Spenders**  
+    Large transactions → upsell high-value products  
 
-        ❄️ **Low Activity**  
-        Minimal usage  
-        """)
+    ⚠️ **Cash Advance Users**  
+    Frequent withdrawals → risk monitoring needed  
+
+    ❄️ **Low Activity Users**  
+    Minimal usage → re-engagement campaigns  
+    """)
+
+else:
+    st.info("👆 Upload a dataset to begin")
