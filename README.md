@@ -1,94 +1,42 @@
-# 💳 Customer Segmentation App
+# 💳 Customer Segmentation System (Machine Learning + Streamlit)
 
-AI-powered customer segmentation system using **KMeans clustering** and **PCA visualization**.
-
-This project analyzes credit card customer behavior and groups them into meaningful business segments for marketing and decision-making.
+An end-to-end machine learning application that segments customers based on financial behavior using **KMeans clustering** and delivers interactive business insights through a Streamlit dashboard.
 
 ---
 
-## 🚀 Live App
-👉
-[](https://customer-segmentation-app.streamlit.app)
+## 📌 Project Overview
 
-(Replace this after deployment)
+This project analyzes customer financial behavior and automatically groups users into meaningful behavioral segments. It helps businesses understand customer patterns and improve decision-making in marketing, retention, and risk management.
 
----
-
-## 📊 Project Overview
-
-This app segments customers into groups such as:
-
-- 💎 VIP Customers  
-- 💰 High Spenders  
-- ⚠️ Cash Users  
-- ❄️ Low Activity Users  
-
-It helps businesses:
-- Improve marketing targeting
-- Reduce churn
-- Increase customer lifetime value
+### 🎯 Business Objective
+- Identify high-value customers
+- Detect risky financial behavior
+- Improve targeted marketing campaigns
+- Enhance customer retention strategies
 
 ---
 
-## 🧠 Machine Learning Workflow
+## 🧠 Machine Learning Approach
 
-### 1. Data Preprocessing
-- Removed customer ID column
-- Handled missing values
-- Scaled numerical features
+- **Algorithm:** KMeans Clustering (Unsupervised Learning)
+- **Preprocessing:** Feature scaling using StandardScaler
+- **Visualization:** PCA for 2D cluster representation
 
-### 2. Model
-- KMeans Clustering
-- Optimal cluster selection
-- PCA for 2D visualization
-
-### 3. Output
-- Customer segmentation labels
-- Business insights
-- Interactive dashboard
+### 📊 Features Used
+- BALANCE
+- PURCHASES
+- CASH_ADVANCE
+- PURCHASES_FREQUENCY
 
 ---
 
-## 📂 Project Structure
+## 🧩 Customer Segments
+
+- 💎 VIP Customers → High-value, loyal customers
+- 💰 High Spenders → Frequent large transactions
+- ⚠️ Cash Advance Users → Credit-dependent customers
+- ❄️ Low Activity Users → Inactive or low engagement users
 
 ---
 
-## 📈 Features
-
-✔ Interactive Streamlit dashboard  
-✔ Customer clustering using KMeans  
-✔ PCA visualization of clusters  
-✔ Business insights for each segment  
-✔ CSV upload support  
-✔ Download segmented data  
-
----
-
-## 🛠️ Tech Stack
-
-- Python  
-- Pandas  
-- Scikit-learn  
-- Matplotlib  
-- Streamlit  
-- Joblib  
-
----
-
-## ▶️ How to Run Locally
-
-```bash
-# Clone repo
-git clone https://github.com/YOUR_USERNAME/customer-segmentation-app.git
-
-cd customer-segmentation-app
-
-# Create environment
-python -m venv venv
-venv\Scripts\activate   # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run app
-streamlit run app.py
+## 🏗️ System Architecture
